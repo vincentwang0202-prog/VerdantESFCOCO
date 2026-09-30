@@ -5,27 +5,20 @@ import streamlit as st
 
 st.set_page_config(page_title="Verdant", page_icon="🍃")
 
-# DEMO PLAYER for the hackathon: typing the nickname "demo" gives a tree that
-# already has 29.5 kg, so the judges can watch a whole tree finish with ONE tap.
-# It is labelled on the page and NOT counted in the Hong Kong total (it's not real).
 DEMO_NAME = "demo"
 DEMO_START_KG = 29.5
 
 
-# Shared mock DB using Streamlit cache
 @st.cache_resource
 def load_db():
-    return {DEMO_NAME: [{"id": "demo-start", "kg": DEMO_START_KG, "date": "2026-09-01"}]}
+    return {DEMO_NAME: [{"way": "demo-start", "kg": DEMO_START_KG, "date": "2026-09-01"}]}
 
 players = load_db()
 
 
-# GREEN WALL memory: one shared list of posts for everyone (newest at the end).
-# It works just like load_db(), but it's a list instead of a dictionary.
 @st.cache_resource
 def load_wall():
     return []
-
 
 wall = load_wall()
 hk_tz = ZoneInfo("Asia/Hong_Kong")
@@ -33,73 +26,18 @@ today = datetime.now(hk_tz).date()
 
 MAX_PER_DAY = 3
 
-ACTIONS = [
-    {
-
-        "id": "mtr",
-        "emoji": "🚇",
-        "label": "MTR instead of a taxi",
-        "kg": 0.8,
-        "source": "8 km trip. MTR ≈ 0.055 kg CO₂ per passenger-km vs car ≈ 0.137 "
-                  "(To, PolyU study of MTR data). Estimate.",
-    },
-    {
-        "id": "walk",
-        "emoji": "🚶",
-        "label": "Walked, not a minibus",
-        "kg": 0.2,
-        "source": "2 km × about 0.1 kg per passenger-km. Buses ≈ 0.08 (same PolyU study); "
-                  "minibuses carry fewer people so we guessed a bit higher. ⚠️ Still checking.",
-    },
-    {
-        "id": "aircon",
-        "emoji": "❄️",
-        "label": "Air-con at 25.5 °C tonight",
-        "kg": 0.35,
-        "source": "Instead of 22 °C. 1.1 kW air-con × 8 hours = 8.8 kWh. "
-                  "CLP says each 1 °C higher saves 3%, so 3.5 °C ≈ 0.92 kWh saved × 0.38 kg per kWh.",
-    },
-    {
-        "id": "cup",
-        "emoji": "🥤",
-        "label": "Brought my own cup",
-        "kg": 0.02,
-        "source": "A single-use cup ≈ 17–37 g CO₂, a reusable cup ≈ 8 g per use "
-                  "(UN Environment cups report; Scottish Government cup study).",
-    },
-    {
-        "id": "takeaway",
-        "emoji": "🍱",
-        "label": "No takeaway box or cutlery",
-        "kg": 0.05,
-        "source": "⚠️ NOT CHECKED YET. This is Vincent's research job!",
-    },
-    {
-        "id": "veggie",
-        "emoji": "🥬",
-        "label": "Ate a meat-free meal",
-        "kg": 1.5,
-        "source": "A meat meal ≈ 3–5 kg CO₂, a vegetarian meal ≈ 0.7–1 kg "
-                  "(Ernstoff et al. 2019; Portugal meals study 2023). We use a careful 1.5 kg.",
-    },
-    {
-        "id": "lights",
-        "emoji": "💡",
-        "label": "Switched off lights",
-        "kg": 0.1,
-        "source": "Lights and devices off when leaving a room. "
-                  "About 100 W of things × 3 hours = 0.3 kWh × 0.38 kg per kWh.",
-    },
-    {
-        "id": "dryer",
-        "emoji": "👕",
-        "label": "Air-dried my clothes",
-        "kg": 0.9,
-        "source": "A dryer uses about 2.5 kWh per load × 0.38 kg per kWh. ⚠️ Still checking the 2.5.",
-    },
+dataparts = [
+    {"way": "mtr", "emoji": "🚇", "words": "MTR instead of taxi", "kg": 0.8, "source": "According to PolyU study of MTR data a passenger only produces 55g of Carbon Dioxide while taking a Car produces 137g of Carbon dioxide. Meaning if you took MTR instead of a Car today you would have saved 82g of Carbon dioxide."},
+    {"way": "walk", "emoji": "🚶", "words": "Walked instead of taking the minibus", "kg": 1.0, "source": "Walking doesn't create any Carbon dioxide."},
+    {"way": "aircon", "emoji": "❄️", "words": "Aircon at 25 degrees celsius", "kg": 0.8, "source": "According to PolyU study of MTR data a passenger only produces 55g of Carbon Dioxide while taking a Car produces 137g of Carbon dioxide. Meaning if you took MTR instead of a Car today you would have saved 82g of Carbon dioxide."},
+    {"way": "cup", "emoji": "🥤", "words": "Brought your own cup instead of using a single use one", "kg": 1.0, "source": "According to UN Enviroment cup reports a single use plastic or paper cup usually takes about 17-37 g to manufacture and transport. While a reusable bottle that takes 1000g of CO2 to take you can use 125+ times meaning it's total carbon footprint is 8g per use."},
+    {"way": "takeaway", "emoji": "🍱", "words": "No takeaway box or cutlery", "kg": 0.05, "source": "According to waste studies, plastic takeaway boxes and plastic forks take heaps of energy and oil to manufacture in factories just to be thrown away 10 minutes later. Saying no to disposable cutlery stops around 50g of unnecessary carbon dioxide waste!"},
+    {"way": "veggie", "emoji": "🥬", "words": "Ate a meat-free meal", "kg": 1.5, "source": "According to food environment research, farm animals like cows and pigs need tons of food, water, and land which creates 3kg to 5kg of carbon dioxide per meal. A tasty vegetarian meal only makes under 1kg, so skipping meat for one meal saves a massive 1.5kg of carbon!"},
+    {"way": "lights", "emoji": "💡", "words": "Switched off lights", "kg": 0.1, "source": "According to power company data, leaving light bulbs, gadgets, and TVs turned on when you leave the room wastes electricity from power plants. Turning off 100 watts of stuff for 3 hours stops about 0.1kg of carbon dioxide from being burned into the sky!"},
+    {"way": "dryer", "emoji": "👕", "words": "Air-dried my clothes", "kg": 0.9, "source": "According to appliance reports, electric clothes dryers use huge amounts of power (about 2.5 units of electricity per load) to heat up and spin. Hanging your wet clothes on a rack lets the Hong Kong wind dry them for free and saves almost 1kg of carbon!"}
 ]
 
-TREE_STAGES = [
+tree_stage = [
     {"name": "Seed", "emoji": "🌰", "min_kg": 0, "image": "images/stage1.png"},
     {"name": "Sprout", "emoji": "🌱", "min_kg": 1, "image": "images/stage2.png"},
     {"name": "Sapling", "emoji": "🌿", "min_kg": 5, "image": "images/stage3.png"},
@@ -107,29 +45,26 @@ TREE_STAGES = [
     {"name": "Verdant", "emoji": "🍃", "min_kg": 30, "image": "images/stage5.png"},
 ]
 
-# NEW: when a tree reaches the LAST stage it is finished. It goes into your
-# forest and a new seed is planted. [-1] means "the last thing in the list".
-FULL_TREE_KG = TREE_STAGES[-1]["min_kg"]   # = 30
+FULL_TREE_KG = tree_stage[-1]["min_kg"]
 
-TIPS = [
-    "Ordering takeaway? Say 走餐具 (no cutlery, please) 🥢",
-    "Bring your own cup to the cha chaan teng for your milk tea 🥤",
-    "Set the air-con to 25.5 °C and turn on a fan too. A fan uses much less electricity 🌀",
-    "Take the MTR, tram or bus instead of a taxi 🚋",
-    "Short trip? Walk it! You'll discover new shops on the way 🚶",
-    "Try one veggie day a week. Lots of dim sum has no meat 🥟",
-    "Switch the TV off at the wall, not just with the remote 📺",
-    "Hang your clothes to dry instead of using the dryer 👕",
-    "Refill your water bottle instead of buying a new one 💧",
-    "Going up one or two floors? Take the stairs instead of the lift 🪜",
-    "Close the curtains on sunny afternoons so your room stays cooler ☀️",
-    "Rinse plastic bottles and recycle them at a GREEN@COMMUNITY point ♻️️",
+tips = [
+    "Ordering food to go? Just say 走餐具 (no cutlery) to skip the extra plastic 🥢",
+    "Grab your travel mug before hitting the cha chaan teng for your milk tea fix 🥤",
+    "Set your air-con to 25.5 °C and run a fan—it feels just as cool but uses way less power 🌀",
+    "Hop on the MTR, tram, or bus instead of grabbing a cab when you're heading out 🚋",
+    "Got a short trip? Walk it instead—you might spot some cool local shops along the way 🚶",
+    "Try going meat-free once a week. Tons of tasty dim sum dishes are naturally veggie 🥟",
+    "Flick the TV switch off at the wall so it isn't secretly sipping power all night 📺",
+    "Skip the tumble dryer and let the Hong Kong breeze dry your clothes for free 👕",
+    "Keep a refillable bottle in your bag so you don't have to keep buying plastic water 💧",
+    "Only going up a floor or two? Take the stairs and beat the lift queue 🪜",
+    "Pull the blinds during hot afternoons to stop the sun turning your bedroom into an oven ☀️",
+    "Give plastic bottles a quick rinse before tossing them into a GREEN@COMMUNITY bin ♻️",
 ]
 
 
 def count_today_action(action_list, act_id, current_date):
-    today_str = current_date.isoformat()
-    return sum(1 for a in action_list if a["id"] == act_id and a["date"] == today_str)
+    return sum(1 for a in action_list if a["way"] == act_id and a["date"] == current_date.isoformat())
 
 
 def calc_streak(action_list, current_date):
@@ -146,20 +81,13 @@ def calc_streak(action_list, current_date):
     return count
 
 
-# NEW: add up all the kg in a list of actions.
-# round(..., 2) stops computer decimal weirdness (29.9999999) from
-# stopping a tree from finishing.
 def total_kg(action_list):
-    total = 0
-    for a in action_list:
-        total = total + a["kg"]
-    return round(total, 2)
+    return round(sum(a["kg"] for a in action_list), 2)
 
 
-# NEW: find the biggest stage this many kg has reached.
 def get_stage(kg):
-    stage = TREE_STAGES[0]
-    for s in TREE_STAGES:
+    stage = tree_stage[0]
+    for s in tree_stage:
         if kg >= s["min_kg"]:
             stage = s
     return stage
@@ -169,17 +97,13 @@ def add_action(user, action):
     user_actions = players[user]
     cur_today = datetime.now(hk_tz).date()
 
-    if count_today_action(user_actions, action["id"], cur_today) >= MAX_PER_DAY:
+    if count_today_action(user_actions, action["way"], cur_today) >= MAX_PER_DAY:
         return
 
-    # NEW: remember how things were BEFORE the new action...
     kg_before = total_kg(user_actions)
-
-    user_actions.append({"id": action["id"], "kg": action["kg"], "date": cur_today.isoformat()})
+    user_actions.append({"way": action["way"], "kg": action["kg"], "date": cur_today.isoformat()})
     st.toast(f"+{action['kg']} kg CO₂ saved! {action['emoji']}")
 
-    # NEW: ...then compare with AFTER. Did something grow? Celebrate! 🎉
-    # //  = how many WHOLE trees fit in.   % = the leftover for the current tree.
     kg_after = total_kg(user_actions)
     trees_before = int(kg_before // FULL_TREE_KG)
     trees_after = int(kg_after // FULL_TREE_KG)
@@ -198,11 +122,7 @@ def add_action(user, action):
 st.title("🍃 Verdant")
 st.write("Grow your own Verdant tree by saving CO₂ in Hong Kong. Every green thing you do makes it grow!")
 
-# Add up everybody EXCEPT the demo player (its head start isn't real data)
-community_total = 0
-for name, user_acts in players.items():
-    if name != DEMO_NAME:
-        community_total = community_total + total_kg(user_acts)
+community_total = sum(total_kg(user_acts) for name, user_acts in players.items() if name != DEMO_NAME)
 st.metric("🇭🇰 Hong Kong has saved together", f"{community_total:.1f} kg CO₂", border=True)
 
 nickname = st.text_input(
@@ -223,20 +143,17 @@ if len(nickname) < 3:
 my_actions = players.setdefault(nickname, [])
 
 if nickname == DEMO_NAME:
-    st.caption(f"🎬 Demo player: starts with {DEMO_START_KG} kg so you can watch a tree finish. "
-               "Not counted in the Hong Kong total.")
-my_kg = total_kg(my_actions)              # everything you have EVER saved
-trees = int(my_kg // FULL_TREE_KG)         # NEW: how many whole trees that grew
-kg_now = my_kg % FULL_TREE_KG              # NEW: the leftover, growing your CURRENT tree
+    st.caption(f"🎬 Demo player: starts with {DEMO_START_KG} kg so you can watch a tree finish. Not counted in the Hong Kong total.")
 
-# Find current and upcoming tree stage (using kg_now, not my_kg)
+my_kg = total_kg(my_actions)
+trees = int(my_kg // FULL_TREE_KG)
+kg_now = my_kg % FULL_TREE_KG
+
 stage = get_stage(kg_now)
-upcoming = next((s for s in TREE_STAGES if s["min_kg"] > kg_now), None)
+upcoming = next((s for s in tree_stage if s["min_kg"] > kg_now), None)
 
-# NEW: your forest, one 🍃 for every finished tree.
-# "🍃" * 3 makes "🍃🍃🍃" (you can multiply text in Python!)
 if trees > 0:
-    st.success(f"**Your forest:** {TREE_STAGES[-1]['emoji'] * trees} ({trees} grown)")
+    st.success(f"**Your forest:** {tree_stage[-1]['emoji'] * trees} ({trees} grown)")
 
 st.subheader(f"Your tree: {stage['name']}")
 
@@ -250,8 +167,6 @@ else:
 
 st.metric("CO₂ you have saved", f"{my_kg:.2f} kg")
 
-# CHANGED: a finished tree goes to the forest, so the current tree
-# always has a next stage. Use kg_now instead of my_kg.
 kg_left = upcoming["min_kg"] - kg_now
 progress_val = (kg_now - stage["min_kg"]) / (upcoming["min_kg"] - stage["min_kg"])
 st.progress(
@@ -263,18 +178,18 @@ days = calc_streak(my_actions, today)
 
 left, right = st.columns(2)
 left.metric("Your streak", f"🔥 {days} day" if days == 1 else f"🔥 {days} days")
-right.info(f"💡 **Tip of the day:** {TIPS[today.toordinal() % len(TIPS)]}")
+right.info(f"💡 **Tip of the day:** {tips[today.toordinal() % len(tips)]}")
 
 st.subheader("What green thing did you do today?")
 
 cols = st.columns(2)
-for idx, action in enumerate(ACTIONS):
-    used_up = count_today_action(my_actions, action["id"], today) >= MAX_PER_DAY
+for idx, action in enumerate(dataparts):
+    used_up = count_today_action(my_actions, action["way"], today) >= MAX_PER_DAY
     extra = ": max for today ✅" if used_up else f" (+{action['kg']} kg)"
 
     cols[idx % 2].button(
-        f"{action['emoji']} {action['label']}{extra}",
-        key=action["id"],
+        f"{action['emoji']} {action['words']}{extra}",
+        key=action["way"],
         on_click=add_action,
         args=(nickname, action),
         disabled=used_up,
@@ -282,26 +197,18 @@ for idx, action in enumerate(ACTIONS):
     )
 
 with st.expander("📚 Where do these numbers come from?"):
-    for action in ACTIONS:
-        st.markdown(f"**{action['emoji']} {action['label']}: {action['kg']} kg**  \n{action['source']}")
-    st.caption("Electricity numbers use CLP Power's 2024 figure: 0.38 kg of CO₂ for every kWh.")
+    for action in dataparts:
+        st.markdown(f"**{action['emoji']} {action['words']}: {action['kg']} kg**  \n{action['source']}")
+    st.caption("Electricity numbers use CLP Power's figure: 0.38 kg of CO₂ for every kWh.")
 
 
-# ---------------------------------------------------------------
-# GREEN WALL: share a photo of something green you did
-# ---------------------------------------------------------------
+# GREEN WALL
 st.divider()
 st.subheader("📸 Green Wall")
-st.caption("Share a photo of something green you did! "
-           "Photos of THINGS only: no faces, names, school uniforms or addresses.")
+st.caption("Share a photo of something green you did! Photos of THINGS only: no faces, names, school uniforms or addresses.")
 
-# The choices for the dropdown, e.g. "🚇 MTR instead of a taxi"
-choices = []
-for action in ACTIONS:
-    choices.append(f"{action['emoji']} {action['label']}")
+choices = [f"{action['emoji']} {action['words']}" for action in dataparts]
 
-# A form waits until you press the button before anything happens.
-# clear_on_submit=True empties the boxes after posting.
 with st.form("new_post", clear_on_submit=True):
     photo = st.file_uploader("Your photo", type=["jpg", "jpeg", "png"], max_upload_size=5)
     chosen = st.selectbox("What did you do?", choices)
@@ -318,18 +225,16 @@ if posted:
             "nickname": nickname,
             "action": chosen,
             "caption": caption.strip(),
-            "photo": photo.getvalue(),   # the picture itself, stored in memory
+            "photo": photo.getvalue(),
             "date": today.isoformat(),
         })
-        # Only keep the newest 20 posts, so the server doesn't run out of memory
         if len(wall) > 20:
-            wall.pop(0)   # pop(0) removes the OLDEST post (the first one)
+            wall.pop(0)
         st.success("Posted! 🎉")
 
 if len(wall) == 0:
     st.info("No posts yet. Be the first! 🌱")
 
-# reversed() goes through the list backwards, so the NEWEST post shows first
 for post in reversed(wall):
     with st.container(border=True):
         st.markdown(f"**{post['nickname']}** · {post['action']} · {post['date']}")
