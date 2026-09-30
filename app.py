@@ -5,9 +5,6 @@ import streamlit as st
 
 st.set_page_config(page_title="Verdant", page_icon="🍃")
 
-# Configuration & Constants
-DEMO_NAME = "demo"
-DEMO_START_KG = 29.5
 MAX_PER_DAY = 3
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
 
@@ -95,11 +92,8 @@ TIPS = [
     "Rinse plastic bottles before dropping them at a GREEN@COMMUNITY station.",
 ]
 
-# Initialize session storage
 if "players" not in st.session_state:
-    st.session_state.players = {
-        DEMO_NAME: [{"way": "demo-start", "kg": DEMO_START_KG, "date": "2026-09-01"}]
-    }
+    st.session_state.players = {}
 
 if "wall" not in st.session_state:
     st.session_state.wall = []
@@ -109,7 +103,6 @@ wall = st.session_state.wall
 today = datetime.now(HK_TZ).date()
 
 
-# State & Calculation Helpers
 def get_total_kg(actions):
     return round(sum(a["kg"] for a in actions), 2)
 
@@ -160,11 +153,10 @@ def handle_action_click(user, action):
         st.toast(f"Level up! Your tree is now a {new_stage['name']} {new_stage['emoji']}")
 
 
-# Main App UI
 st.title("🍃 Verdant")
 st.write("Grow your tree by saving CO₂ in Hong Kong. Every green habit helps!")
 
-community_total = sum(get_total_kg(acts) for name, acts in players.items() if name != DEMO_NAME)
+community_total = sum(get_total_kg(acts) for acts in players.values())
 st.metric("Hong Kong total CO₂ saved", f"{community_total:.1f} kg CO₂", border=True)
 
 nickname = st.text_input(
@@ -183,9 +175,6 @@ if len(nickname) < 3:
     st.stop()
 
 user_actions = players.setdefault(nickname, [])
-
-if nickname == DEMO_NAME:
-    st.caption(f"Demo account (starts at {DEMO_START_KG} kg). Excluded from community total.")
 
 total_saved = get_total_kg(user_actions)
 completed_trees = int(total_saved // FULL_TREE_KG)
@@ -239,7 +228,6 @@ with st.expander("Where do these numbers come from?"):
 
 st.divider()
 
-# Community Photo Wall
 st.subheader("Green Wall")
 st.caption("Share a photo of your green habit! Photos of items/activities only.")
 
