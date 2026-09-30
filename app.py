@@ -18,6 +18,16 @@ def load_db():
     return {DEMO_NAME: [{"id": "demo-start", "kg": DEMO_START_KG, "date": "2026-09-01"}]}
 
 players = load_db()
+
+
+# GREEN WALL memory: one shared list of posts for everyone (newest at the end).
+# It works just like load_db(), but it's a list instead of a dictionary.
+@st.cache_resource
+def load_wall():
+    return []
+
+
+wall = load_wall()
 hk_tz = ZoneInfo("Asia/Hong_Kong")
 today = datetime.now(hk_tz).date()
 
@@ -275,3 +285,53 @@ with st.expander("📚 Where do these numbers come from?"):
     for action in ACTIONS:
         st.markdown(f"**{action['emoji']} {action['label']}: {action['kg']} kg**  \n{action['source']}")
     st.caption("Electricity numbers use CLP Power's 2024 figure: 0.38 kg of CO₂ for every kWh.")
+
+
+# ---------------------------------------------------------------
+# GREEN WALL: share a photo of something green you did
+# ---------------------------------------------------------------
+st.divider()
+st.subheader("📸 Green Wall")
+st.caption("Share a photo of something green you did! "
+           "Photos of THINGS only: no faces, names, school uniforms or addresses.")
+
+# The choices for the dropdown, e.g. "🚇 MTR instead of a taxi"
+choices = []
+for action in ACTIONS:
+    choices.append(f"{action['emoji']} {action['label']}")
+
+# A form waits until you press the button before anything happens.
+# clear_on_submit=True empties the boxes after posting.
+with st.form("new_post", clear_on_submit=True):
+    photo = st.file_uploader("Your photo", type=["jpg", "jpeg", "png"], max_upload_size=5)
+    chosen = st.selectbox("What did you do?", choices)
+    caption = st.text_input("Caption", max_chars=100, placeholder="e.g. Took the MTR to school today!")
+    posted = st.form_submit_button("Post to the wall 🌿")
+
+if posted:
+    if photo is None:
+        st.warning("Please add a photo first 📷")
+    elif caption.strip() == "":
+        st.warning("Please write a short caption ✍️")
+    else:
+        wall.append({
+            "nickname": nickname,
+            "action": chosen,
+            "caption": caption.strip(),
+            "photo": photo.getvalue(),   # the picture itself, stored in memory
+            "date": today.isoformat(),
+        })
+        # Only keep the newest 20 posts, so the server doesn't run out of memory
+        if len(wall) > 20:
+            wall.pop(0)   # pop(0) removes the OLDEST post (the first one)
+        st.success("Posted! 🎉")
+
+if len(wall) == 0:
+    st.info("No posts yet. Be the first! 🌱")
+
+# reversed() goes through the list backwards, so the NEWEST post shows first
+for post in reversed(wall):
+    with st.container(border=True):
+        st.markdown(f"**{post['nickname']}** · {post['action']} · {post['date']}")
+        st.image(post["photo"], width=300)
+        st.write(post["caption"])
