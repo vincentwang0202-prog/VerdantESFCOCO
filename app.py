@@ -5,10 +5,17 @@ import streamlit as st
 
 st.set_page_config(page_title="Verdant", page_icon="🍃")
 
+# DEMO PLAYER for the hackathon: typing the nickname "demo" gives a tree that
+# already has 29.5 kg, so the judges can watch a whole tree finish with ONE tap.
+# It is labelled on the page and NOT counted in the Hong Kong total (it's not real).
+DEMO_NAME = "demo"
+DEMO_START_KG = 29.5
+
+
 # Shared mock DB using Streamlit cache
 @st.cache_resource
 def load_db():
-    return {}
+    return {DEMO_NAME: [{"id": "demo-start", "kg": DEMO_START_KG, "date": "2026-09-01"}]}
 
 players = load_db()
 hk_tz = ZoneInfo("Asia/Hong_Kong")
@@ -18,7 +25,7 @@ MAX_PER_DAY = 3
 
 ACTIONS = [
     {
-        
+
         "id": "mtr",
         "emoji": "🚇",
         "label": "MTR instead of a taxi",
@@ -90,6 +97,10 @@ TREE_STAGES = [
     {"name": "Verdant", "emoji": "🍃", "min_kg": 30, "image": "images/stage5.png"},
 ]
 
+# NEW: when a tree reaches the LAST stage it is finished. It goes into your
+# forest and a new seed is planted. [-1] means "the last thing in the list".
+FULL_TREE_KG = TREE_STAGES[-1]["min_kg"]   # = 30
+
 TIPS = [
     "Ordering takeaway? Say 走餐具 (no cutlery, please) 🥢",
     "Bring your own cup to the cha chaan teng for your milk tea 🥤",
@@ -125,6 +136,25 @@ def calc_streak(action_list, current_date):
     return count
 
 
+# NEW: add up all the kg in a list of actions.
+# round(..., 2) stops computer decimal weirdness (29.9999999) from
+# stopping a tree from finishing.
+def total_kg(action_list):
+    total = 0
+    for a in action_list:
+        total = total + a["kg"]
+    return round(total, 2)
+
+
+# NEW: find the biggest stage this many kg has reached.
+def get_stage(kg):
+    stage = TREE_STAGES[0]
+    for s in TREE_STAGES:
+        if kg >= s["min_kg"]:
+            stage = s
+    return stage
+
+
 def add_action(user, action):
     user_actions = players[user]
     cur_today = datetime.now(hk_tz).date()
@@ -132,15 +162,37 @@ def add_action(user, action):
     if count_today_action(user_actions, action["id"], cur_today) >= MAX_PER_DAY:
         return
 
+    # NEW: remember how things were BEFORE the new action...
+    kg_before = total_kg(user_actions)
+
     user_actions.append({"id": action["id"], "kg": action["kg"], "date": cur_today.isoformat()})
     st.toast(f"+{action['kg']} kg CO₂ saved! {action['emoji']}")
+
+    # NEW: ...then compare with AFTER. Did something grow? Celebrate! 🎉
+    # //  = how many WHOLE trees fit in.   % = the leftover for the current tree.
+    kg_after = total_kg(user_actions)
+    trees_before = int(kg_before // FULL_TREE_KG)
+    trees_after = int(kg_after // FULL_TREE_KG)
+    stage_before = get_stage(kg_before % FULL_TREE_KG)
+    stage_after = get_stage(kg_after % FULL_TREE_KG)
+
+    if trees_after > trees_before:
+        st.balloons()
+        st.toast("🍃 You grew a whole Verdant tree! It's in your forest now, and a new seed is planted.")
+    elif stage_after["name"] != stage_before["name"]:
+        st.balloons()
+        st.toast(f"🎉 Level up! Your tree is now a {stage_after['name']} {stage_after['emoji']}")
 
 
 # Main UI
 st.title("🍃 Verdant")
 st.write("Grow your own Verdant tree by saving CO₂ in Hong Kong. Every green thing you do makes it grow!")
 
-community_total = sum(sum(a["kg"] for a in user_acts) for user_acts in players.values())
+# Add up everybody EXCEPT the demo player (its head start isn't real data)
+community_total = 0
+for name, user_acts in players.items():
+    if name != DEMO_NAME:
+        community_total = community_total + total_kg(user_acts)
 st.metric("🇭🇰 Hong Kong has saved together", f"{community_total:.1f} kg CO₂", border=True)
 
 nickname = st.text_input(
@@ -159,11 +211,22 @@ if len(nickname) < 3:
     st.stop()
 
 my_actions = players.setdefault(nickname, [])
-my_kg = sum(a["kg"] for a in my_actions)
 
-# Find current and upcoming tree stage
-stage = [s for s in TREE_STAGES if my_kg >= s["min_kg"]][-1]
-upcoming = next((s for s in TREE_STAGES if s["min_kg"] > my_kg), None)
+if nickname == DEMO_NAME:
+    st.caption(f"🎬 Demo player: starts with {DEMO_START_KG} kg so you can watch a tree finish. "
+               "Not counted in the Hong Kong total.")
+my_kg = total_kg(my_actions)              # everything you have EVER saved
+trees = int(my_kg // FULL_TREE_KG)         # NEW: how many whole trees that grew
+kg_now = my_kg % FULL_TREE_KG              # NEW: the leftover, growing your CURRENT tree
+
+# Find current and upcoming tree stage (using kg_now, not my_kg)
+stage = get_stage(kg_now)
+upcoming = next((s for s in TREE_STAGES if s["min_kg"] > kg_now), None)
+
+# NEW: your forest, one 🍃 for every finished tree.
+# "🍃" * 3 makes "🍃🍃🍃" (you can multiply text in Python!)
+if trees > 0:
+    st.success(f"**Your forest:** {TREE_STAGES[-1]['emoji'] * trees} ({trees} grown)")
 
 st.subheader(f"Your tree: {stage['name']}")
 
@@ -177,15 +240,14 @@ else:
 
 st.metric("CO₂ you have saved", f"{my_kg:.2f} kg")
 
-if upcoming is None:
-    st.success("Your tree is fully Verdant! 🍃 Amazing work!")
-else:
-    kg_left = upcoming["min_kg"] - my_kg
-    progress_val = (my_kg - stage["min_kg"]) / (upcoming["min_kg"] - stage["min_kg"])
-    st.progress(
-        progress_val,
-        text=f"{kg_left:.2f} kg more until {upcoming['emoji']} {upcoming['name']}"
-    )
+# CHANGED: a finished tree goes to the forest, so the current tree
+# always has a next stage. Use kg_now instead of my_kg.
+kg_left = upcoming["min_kg"] - kg_now
+progress_val = (kg_now - stage["min_kg"]) / (upcoming["min_kg"] - stage["min_kg"])
+st.progress(
+    progress_val,
+    text=f"{kg_left:.2f} kg more until {upcoming['emoji']} {upcoming['name']}"
+)
 
 days = calc_streak(my_actions, today)
 
@@ -199,7 +261,7 @@ cols = st.columns(2)
 for idx, action in enumerate(ACTIONS):
     used_up = count_today_action(my_actions, action["id"], today) >= MAX_PER_DAY
     extra = ": max for today ✅" if used_up else f" (+{action['kg']} kg)"
-    
+
     cols[idx % 2].button(
         f"{action['emoji']} {action['label']}{extra}",
         key=action["id"],
