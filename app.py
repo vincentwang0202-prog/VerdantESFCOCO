@@ -9,54 +9,14 @@ MAX_PER_DAY = 3
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
 
 DATAPARTS = [
-    {
-        "way": "mtr",
-        "emoji": "🚇",
-        "words": "MTR instead of taxi",
-        "kg": 0.8,
-    },
-    {
-        "way": "walk",
-        "emoji": "🚶",
-        "words": "Walked instead of taking minibus",
-        "kg": 1.0,
-    },
-    {
-        "way": "aircon",
-        "emoji": "❄️",
-        "words": "Aircon set to 25°C",
-        "kg": 0.8,
-    },
-    {
-        "way": "cup",
-        "emoji": "🥤",
-        "words": "Brought reusable cup",
-        "kg": 1.0,
-    },
-    {
-        "way": "takeaway",
-        "emoji": "🍱",
-        "words": "Declined takeaway box/cutlery",
-        "kg": 0.05,
-    },
-    {
-        "way": "veggie",
-        "emoji": "🥬",
-        "words": "Ate a meat-free meal",
-        "kg": 1.5,
-    },
-    {
-        "way": "lights",
-        "emoji": "💡",
-        "words": "Switched off unused lights",
-        "kg": 0.1,
-    },
-    {
-        "way": "dryer",
-        "emoji": "👕",
-        "words": "Air-dried clothes",
-        "kg": 0.9,
-    },
+    {"way": "mtr", "emoji": "🚇", "words": "MTR instead of taxi", "kg": 0.8},
+    {"way": "walk", "emoji": "🚶", "words": "Walked instead of taking minibus", "kg": 1.0},
+    {"way": "aircon", "emoji": "❄️", "words": "Aircon set to 25°C", "kg": 0.8},
+    {"way": "cup", "emoji": "🥤", "words": "Brought reusable cup", "kg": 1.0},
+    {"way": "takeaway", "emoji": "🍱", "words": "Declined takeaway box/cutlery", "kg": 0.05},
+    {"way": "veggie", "emoji": "🥬", "words": "Ate a meat-free meal", "kg": 1.5},
+    {"way": "lights", "emoji": "💡", "words": "Switched off unused lights", "kg": 0.1},
+    {"way": "dryer", "emoji": "👕", "words": "Air-dried clothes", "kg": 0.9},
 ]
 
 TREE_STAGES = [
@@ -90,23 +50,23 @@ wall = st.session_state.wall
 today = datetime.now(HK_TZ).date()
 
 
-def get_total_kg(actions):
+def totalkgkg(actions):
     return round(sum(a["kg"] for a in actions), 2)
 
 
-def get_current_stage(kg):
+def currenttstage(kg):
     for stage in reversed(TREE_STAGES):
         if kg >= stage["min_kg"]:
             return stage
     return TREE_STAGES[0]
 
 
-def count_today_actions(actions, act_id):
+def countdayaction(actions, act_id):
     today_str = today.isoformat()
     return sum(1 for a in actions if a["way"] == act_id and a["date"] == today_str)
 
 
-def calculate_streak(actions):
+def streakcalc(actions):
     logged_dates = {a["date"] for a in actions}
     check_day = today
 
@@ -120,30 +80,30 @@ def calculate_streak(actions):
     return streak
 
 
-def handle_action_click(user, action):
+def actclickhandling(user, action):
     user_actions = players[user]
-    if count_today_actions(user_actions, action["way"]) >= MAX_PER_DAY:
+    if countdayaction(user_actions, action["way"]) >= MAX_PER_DAY:
         return
 
-    prev_kg = get_total_kg(user_actions)
+    prev_kg = totalkgkg(user_actions)
     user_actions.append({"way": action["way"], "kg": action["kg"], "date": today.isoformat()})
     
     st.toast(f"+{action['kg']} kg carbon dioxide saved! {action['emoji']}")
 
-    new_kg = get_total_kg(user_actions)
+    new_kg = totalkgkg(user_actions)
     if int(new_kg // FULL_TREE_KG) > int(prev_kg // FULL_TREE_KG):
         st.balloons()
         st.toast(" You grew a whole Verdant tree! A new seed has been planted.")
-    elif get_current_stage(new_kg % FULL_TREE_KG)["name"] != get_current_stage(prev_kg % FULL_TREE_KG)["name"]:
+    elif currenttstage(new_kg % FULL_TREE_KG)["name"] != currenttstage(prev_kg % FULL_TREE_KG)["name"]:
         st.balloons()
-        new_stage = get_current_stage(new_kg % FULL_TREE_KG)
+        new_stage = currenttstage(new_kg % FULL_TREE_KG)
         st.toast(f"Level up! Your tree is now a {new_stage['name']} {new_stage['emoji']}")
 
 
 st.title("🍃 Verdant")
 st.write("Grow your tree by saving carbon dioxide in Hong Kong every action helps.")
 
-community_total = sum(get_total_kg(acts) for acts in players.values())
+community_total = sum(totalkgkg(acts) for acts in players.values())
 st.metric("Hong Kong total carbon dioxide saved", f"{community_total:.1f} kg carbon dioxide", border=True)
 
 nickname = st.text_input(
@@ -163,11 +123,11 @@ if len(nickname) < 3:
 
 user_actions = players.setdefault(nickname, [])
 
-total_saved = get_total_kg(user_actions)
+total_saved = totalkgkg(user_actions)
 completed_trees = int(total_saved // FULL_TREE_KG)
 current_cycle_kg = total_saved % FULL_TREE_KG
 
-current_stage = get_current_stage(current_cycle_kg)
+current_stage = currenttstage(current_cycle_kg)
 next_stage = next((s for s in TREE_STAGES if s["min_kg"] > current_cycle_kg), None)
 
 if completed_trees:
@@ -187,7 +147,7 @@ if next_stage:
     progress_val = (current_cycle_kg - current_stage["min_kg"]) / (next_stage["min_kg"] - current_stage["min_kg"])
     st.progress(progress_val, text=f"{kg_needed:.2f} kg remaining until {next_stage['emoji']} {next_stage['name']}")
 
-streak = calculate_streak(user_actions)
+streak = streakcalc(user_actions)
 c1, c2 = st.columns(2)
 c1.metric("Current streak", f"🔥 {streak} day" if streak == 1 else f"🔥 {streak} days")
 c2.info(f"**Daily Tip:** {TIPS[today.toordinal() % len(TIPS)]}")
@@ -196,13 +156,13 @@ st.subheader("What green action did you do today?")
 
 grid = st.columns(2)
 for idx, action in enumerate(DATAPARTS):
-    reached_limit = count_today_actions(user_actions, action["way"]) >= MAX_PER_DAY
-    suffix = " (maxed)" if reached_limit else f" (+{action['kg']} kg)"
+    reached_limit = countdayaction(user_actions, action["way"]) >= MAX_PER_DAY
+    suffix = f" (+{action['kg']} kg)"
 
     grid[idx % 2].button(
         f"{action['emoji']} {action['words']}{suffix}",
         key=f"btn_{action['way']}",
-        on_click=handle_action_click,
+        on_click=actclickhandling,
         args=(nickname, action),
         disabled=reached_limit,
         use_container_width=True,
