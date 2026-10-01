@@ -14,56 +14,48 @@ DATAPARTS = [
         "emoji": "🚇",
         "words": "MTR instead of taxi",
         "kg": 0.8,
-        "source": "PolyU MTR study: ~55g CO₂ taking MTR vs 137g driving for the same distance.",
     },
     {
         "way": "walk",
         "emoji": "🚶",
         "words": "Walked instead of taking minibus",
         "kg": 1.0,
-        "source": "Zero emission transport mode.",
     },
     {
         "way": "aircon",
         "emoji": "❄️",
         "words": "Aircon set to 25°C",
         "kg": 0.8,
-        "source": "HK Electric / CLP: Raising aircon by 1°C saves ~3% electricity.",
     },
     {
         "way": "cup",
         "emoji": "🥤",
         "words": "Brought reusable cup",
         "kg": 1.0,
-        "source": "UNEP: Single-use cups average 17-37g CO₂e per unit.",
     },
     {
         "way": "takeaway",
         "emoji": "🍱",
         "words": "Declined takeaway box/cutlery",
         "kg": 0.05,
-        "source": "Avoids single-use plastic production footprint (~50g CO₂).",
     },
     {
         "way": "veggie",
         "emoji": "🥬",
         "words": "Ate a meat-free meal",
         "kg": 1.5,
-        "source": "Meat-free meals save between 1.5kg–3kg CO₂e compared to meat.",
     },
     {
         "way": "lights",
         "emoji": "💡",
         "words": "Switched off unused lights",
         "kg": 0.1,
-        "source": "Turning off 100W for 3h saves ~0.3kWh (~0.11kg CO₂).",
     },
     {
         "way": "dryer",
         "emoji": "👕",
         "words": "Air-dried clothes",
         "kg": 0.9,
-        "source": "Skipping dryer cycle saves ~0.95kg CO₂.",
     },
 ]
 
@@ -78,18 +70,13 @@ TREE_STAGES = [
 FULL_TREE_KG = TREE_STAGES[-1]["min_kg"]
 
 TIPS = [
-    "Ordering food to go? Just say 走餐具 (no cutlery) to skip extra plastic.",
-    "Grab your travel mug before hitting the cha chaan teng for milk tea.",
-    "Set air-con to 25.5°C and run a fan—it feels just as cool with less power.",
-    "Hop on the MTR, tram, or bus instead of grabbing a cab.",
-    "Short trip? Walk it instead—you might spot cool local shops along the way.",
-    "Try going meat-free once a week. Plenty of dim sum choices are vegetarian.",
-    "Flick the TV switch off at the wall so it isn't sipping standby power.",
-    "Skip the tumble dryer and let the Hong Kong breeze dry your clothes.",
-    "Keep a refillable bottle in your bag so you don't need bottled water.",
-    "Only going up a floor or two? Take the stairs and skip the lift queue.",
-    "Pull the blinds during hot afternoons to block sunlight heat gain.",
-    "Rinse plastic bottles before dropping them at a GREEN@COMMUNITY station.",
+    "Ordering takeaway ask for no cutlery to save plastic",
+    "25.5°C + a fan is fine trust",
+    "Take the MTR or bus taxi expensive ",
+    "If it's close just walk",
+    "Skip the dryer and just hang your clothes out",
+    "Keep a water bottle in your bag so you don't need to buy bottled water",
+    "Close the curtains on hot days so the room stays cooler",
 ]
 
 if "players" not in st.session_state:
@@ -141,7 +128,7 @@ def handle_action_click(user, action):
     prev_kg = get_total_kg(user_actions)
     user_actions.append({"way": action["way"], "kg": action["kg"], "date": today.isoformat()})
     
-    st.toast(f"+{action['kg']} kg CO₂ saved! {action['emoji']}")
+    st.toast(f"+{action['kg']} kg carbon dioxide saved! {action['emoji']}")
 
     new_kg = get_total_kg(user_actions)
     if int(new_kg // FULL_TREE_KG) > int(prev_kg // FULL_TREE_KG):
@@ -154,16 +141,16 @@ def handle_action_click(user, action):
 
 
 st.title("🍃 Verdant")
-st.write("Grow your tree by saving CO₂ in Hong Kong. Every green habit helps!")
+st.write("Grow your tree by saving carbon dioxide in Hong Kong every action helps.")
 
 community_total = sum(get_total_kg(acts) for acts in players.values())
-st.metric("Hong Kong total CO₂ saved", f"{community_total:.1f} kg CO₂", border=True)
+st.metric("Hong Kong total carbon dioxide saved", f"{community_total:.1f} kg carbon dioxide", border=True)
 
 nickname = st.text_input(
     "Your nickname",
     max_chars=15,
-    placeholder="e.g. dimsumhero",
-    help="Use the same nickname to log back in.",
+    placeholder="something like vincent67",
+    help="use the same nickname to log back in.",
 ).strip().lower()
 
 if not nickname:
@@ -193,7 +180,7 @@ if os.path.exists(current_stage["image"]):
 else:
     st.markdown(f"<h1 style='text-align: center; font-size: 80px;'>{current_stage['emoji']}</h1>", unsafe_allow_html=True)
 
-st.metric("CO₂ saved", f"{total_saved:.2f} kg")
+st.metric("Carbon dioxide saved", f"{total_saved:.2f} kg")
 
 if next_stage:
     kg_needed = next_stage["min_kg"] - current_cycle_kg
@@ -205,7 +192,7 @@ c1, c2 = st.columns(2)
 c1.metric("Current streak", f"🔥 {streak} day" if streak == 1 else f"🔥 {streak} days")
 c2.info(f"**Daily Tip:** {TIPS[today.toordinal() % len(TIPS)]}")
 
-st.subheader("What green action did you take today?")
+st.subheader("What green action did you do today?")
 
 grid = st.columns(2)
 for idx, action in enumerate(DATAPARTS):
@@ -221,10 +208,16 @@ for idx, action in enumerate(DATAPARTS):
         use_container_width=True,
     )
 
-with st.expander("Where do these numbers come from?"):
-    for action in DATAPARTS:
-        st.markdown(f"**{action['emoji']} {action['words']}: {action['kg']} kg**\n\n{action['source']}")
-    st.caption("Electricity calculation standard: CLP Power carbon intensity benchmark (~0.38 kg CO₂/kWh).")
+with st.expander("Sources"):
+    st.markdown("**🚇 MTR instead of taxi**\n\nAccording to a Hong Kong Polytechnic University study, the MTR emitted about 55g carbon dioxide equivalent per passenger-km in 2017, vs about 137g for a private car.")
+    st.markdown("**🚶 Walked instead of taking minibus**\n\nAccording to Wikipedia's comparison of transport emissions in Europe, a bus emits about 68g carbon dioxide per passenger-km. Walking emits none.")
+    st.markdown("**❄️ Aircon set to 25°C**\n\nAccording to the CLP Power website, raising the aircon by 1°C saves about 3% energy.")
+    st.markdown("**🥤 Brought reusable cup**\n\nAccording to the Scottish Government website, one single-use paper cup is about 17g carbon dioxide equivalent.")
+    st.markdown("**🍱 Declined takeaway box/cutlery**\n\nAccording to the Zero Waste Scotland website, one single-use polystyrene takeaway box is about 51g carbon dioxide equivalent.")
+    st.markdown("**🥬 Ate a meat-free meal**\n\nAccording to a study of Portuguese meals published on Springer, meat dishes average about 4.8kg carbon dioxide equivalent per serving vs about 0.7kg for vegetarian ones.")
+    st.markdown("**💡 Switched off unused lights**\n\nAccording to the CLP Power website, its electricity was about 0.38kg carbon dioxide equivalent per kWh in 2024, so turning off 100W for 3h (0.3kWh) saves about 0.11kg.")
+    st.markdown("**👕 Air-dried clothes**\n\nAccording to a study on ScienceDirect, an electric dryer uses about 2.42kWh per load. At CLP's 0.38kg per kWh, that's about 0.92kg carbon dioxide equivalent.")
+    st.caption("Electricity calculation standard: CLP Power carbon intensity benchmark (~0.38 kg carbon dioxide/kWh).")
 
 st.divider()
 
