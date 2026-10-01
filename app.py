@@ -1,32 +1,19 @@
+import streamlit as st
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-import streamlit as st
 
 st.set_page_config(page_title="Verdant", page_icon="🍃")
 
 MAX_PER_DAY = 3
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
 
-DATAPARTS = [
-    {"way": "mtr", "emoji": "🚇", "words": "MTR instead of taxi", "kg": 0.8},
-    {"way": "walk", "emoji": "🚶", "words": "Walked instead of taking minibus", "kg": 1.0},
-    {"way": "aircon", "emoji": "❄️", "words": "Aircon set to 25°C", "kg": 0.8},
-    {"way": "cup", "emoji": "🥤", "words": "Brought reusable cup", "kg": 1.0},
-    {"way": "takeaway", "emoji": "🍱", "words": "Declined takeaway box/cutlery", "kg": 0.05},
-    {"way": "veggie", "emoji": "🥬", "words": "Ate a meat-free meal", "kg": 1.5},
-    {"way": "lights", "emoji": "💡", "words": "Switched off unused lights", "kg": 0.1},
-    {"way": "dryer", "emoji": "👕", "words": "Air-dried clothes", "kg": 0.9},
-]
+SEED = {"name": "Seed", "emoji": "🌰", "min_kg": 0, "image": "images/stage1.png"}
+SPROUT = {"name": "Sprout", "emoji": "🌱", "min_kg": 1, "image": "images/stage2.png"}
+SAPLING = {"name": "Sapling", "emoji": "🌿", "min_kg": 5, "image": "images/stage3.png"}
+TREE = {"name": "Tree", "emoji": "🌳", "min_kg": 15, "image": "images/stage4.png"}
+VERDANT = {"name": "Verdant", "emoji": "🍃", "min_kg": 30, "image": "images/stage5.png"}
 
-TREE_STAGES = [
-    {"name": "Seed", "emoji": "🌰", "min_kg": 0, "image": "images/stage1.png"},
-    {"name": "Sprout", "emoji": "🌱", "min_kg": 1, "image": "images/stage2.png"},
-    {"name": "Sapling", "emoji": "🌿", "min_kg": 5, "image": "images/stage3.png"},
-    {"name": "Tree", "emoji": "🌳", "min_kg": 15, "image": "images/stage4.png"},
-    {"name": "Verdant", "emoji": "🍃", "min_kg": 30, "image": "images/stage5.png"},
-]
-
-FULL_TREE_KG = TREE_STAGES[-1]["min_kg"]
+FULL_TREE_KG = VERDANT["min_kg"]
 
 TIPS = [
     "Ordering takeaway ask for no cutlery to save plastic",
@@ -55,12 +42,17 @@ def totalkgget(actions):
         total = total + a["kg"]
     return round(total, 2)
 
-def currenttreestage(kg):
-    stage = TREE_STAGES[0]
-    for s in TREE_STAGES:
-        if kg >= s["min_kg"]:
-            stage = s
-    return stage
+def currenttreestage(kg)
+    if kg >= VERDANT["min_kg"]:
+        return VERDANT
+    elif kg >= TREE["min_kg"]:
+        return TREE
+    elif kg >= SAPLING["min_kg"]:
+        return SAPLING
+    elif kg >= SPROUT["min_kg"]:
+        return SPROUT
+    else:
+        return SEED
 
 def countodayaction(actions, act_id):
     count = 0
@@ -75,7 +67,6 @@ def streakcalc(actions):
         dates.append(a["date"])
 
     day = today
-    # if nothing today yet start from yesterday so streak doesnt reset
     if day.isoformat() not in dates:
         day = day - timedelta(days=1)
 
@@ -85,14 +76,14 @@ def streakcalc(actions):
         day = day - timedelta(days=1)
     return streak
 
-def actionclickhandling(user, action):
+def actionclickhandling(user, way, kg, emoji):
     user_actions = players[user]
-    if countodayaction(user_actions, action["way"]) >= MAX_PER_DAY:
+    if countodayaction(user_actions, way) >= MAX_PER_DAY:
         return
 
     prev_kg = totalkgget(user_actions)
-    user_actions.append({"way": action["way"], "kg": action["kg"], "date": today.isoformat()})
-    st.toast(f"+{action['kg']} kg carbon dioxide saved! {action['emoji']}")
+    user_actions.append({"way": way, "kg": kg, "date": today.isoformat()})
+    st.toast(f"+{kg} kg carbon dioxide saved! {emoji}")
 
     new_kg = totalkgget(user_actions)
     if int(new_kg // FULL_TREE_KG) > int(prev_kg // FULL_TREE_KG):
@@ -136,14 +127,19 @@ completed_trees = int(total_saved // FULL_TREE_KG)
 current_cycle_kg = total_saved % FULL_TREE_KG
 
 current_stage = currenttreestage(current_cycle_kg)
-next_stage = None
-for s in TREE_STAGES:
-    if s["min_kg"] > current_cycle_kg:
-        next_stage = s
-        break
+if current_cycle_kg < SPROUT["min_kg"]:
+    next_stage = SPROUT
+elif current_cycle_kg < SAPLING["min_kg"]:
+    next_stage = SAPLING
+elif current_cycle_kg < TREE["min_kg"]:
+    next_stage = TREE
+elif current_cycle_kg < VERDANT["min_kg"]:
+    next_stage = VERDANT
+else:
+    next_stage = None
 
 if completed_trees:
-    st.success(f"**Your forest:** {TREE_STAGES[-1]['emoji'] * completed_trees} ({completed_trees} trees)")
+    st.success(f"**Your forest:** {VERDANT['emoji'] * completed_trees} ({completed_trees} trees)")
 
 st.subheader(f"Your tree: {current_stage['name']}")
 
@@ -166,19 +162,73 @@ c2.info(f"**Daily Tip:** {TIPS[today.day % len(TIPS)]}")
 
 st.subheader("What green action did you do today?")
 
-grid = st.columns(2)
-for idx, action in enumerate(DATAPARTS):
-    reached_limit = countodayaction(user_actions, action["way"]) >= MAX_PER_DAY
-    suffix = f" (+{action['kg']} kg)"
+# each button typed out, col1 is left and col2 is right
+col1, col2 = st.columns(2)
 
-    grid[idx % 2].button(
-        f"{action['emoji']} {action['words']}{suffix}",
-        key=f"btn_{action['way']}",
-        on_click=actionclickhandling,
-        args=(nickname, action),
-        disabled=reached_limit,
-        use_container_width=True,
-    )
+col1.button(
+    "🚇 MTR instead of taxi (+0.8 kg)",
+    key="btn_mtr",
+    on_click=actionclickhandling,
+    args=(nickname, "mtr", 0.8, "🚇"),
+    disabled=countodayaction(user_actions, "mtr") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col2.button(
+    "🚶 Walked instead of taking minibus (+1.0 kg)",
+    key="btn_walk",
+    on_click=actionclickhandling,
+    args=(nickname, "walk", 1.0, "🚶"),
+    disabled=countodayaction(user_actions, "walk") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col1.button(
+    "❄️ Aircon set to 25°C (+0.8 kg)",
+    key="btn_aircon",
+    on_click=actionclickhandling,
+    args=(nickname, "aircon", 0.8, "❄️"),
+    disabled=countodayaction(user_actions, "aircon") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col2.button(
+    "🥤 Brought reusable cup (+1.0 kg)",
+    key="btn_cup",
+    on_click=actionclickhandling,
+    args=(nickname, "cup", 1.0, "🥤"),
+    disabled=countodayaction(user_actions, "cup") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col1.button(
+    "🍱 Declined takeaway box/cutlery (+0.05 kg)",
+    key="btn_takeaway",
+    on_click=actionclickhandling,
+    args=(nickname, "takeaway", 0.05, "🍱"),
+    disabled=countodayaction(user_actions, "takeaway") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col2.button(
+    "🥬 Ate a meat-free meal (+1.5 kg)",
+    key="btn_veggie",
+    on_click=actionclickhandling,
+    args=(nickname, "veggie", 1.5, "🥬"),
+    disabled=countodayaction(user_actions, "veggie") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col1.button(
+    "💡 Switched off unused lights (+0.1 kg)",
+    key="btn_lights",
+    on_click=actionclickhandling,
+    args=(nickname, "lights", 0.1, "💡"),
+    disabled=countodayaction(user_actions, "lights") >= MAX_PER_DAY,
+    use_container_width=True,
+)
+col2.button(
+    "👕 Air-dried clothes (+0.9 kg)",
+    key="btn_dryer",
+    on_click=actionclickhandling,
+    args=(nickname, "dryer", 0.9, "👕"),
+    disabled=countodayaction(user_actions, "dryer") >= MAX_PER_DAY,
+    use_container_width=True,
+)
 
 with st.expander("Sources"):
     st.markdown("**🚇 MTR instead of taxi**\n\nAccording to a Hong Kong Polytechnic University study, the MTR emitted about 55g carbon dioxide equivalent per passenger-km in 2017, vs about 137g for a private car.")
@@ -196,7 +246,16 @@ st.divider()
 st.subheader("Green Wall")
 st.caption("Share a photo of your green habit! Photos of items/activities only.")
 
-action_options = [f"{item['emoji']} {item['words']}" for item in DATAPARTS]
+action_options = [
+    "🚇 MTR instead of taxi",
+    "🚶 Walked instead of taking minibus",
+    "❄️ Aircon set to 25°C",
+    "🥤 Brought reusable cup",
+    "🍱 Declined takeaway box/cutlery",
+    "🥬 Ate a meat-free meal"
+    ,"💡 Switched off unused lights",
+    "👕 Air-dried clothes",
+]
 
 with st.form("new_post", clear_on_submit=True):
     photo = st.file_uploader("Upload photo", type=["jpg", "jpeg", "png"])
@@ -220,7 +279,7 @@ if submitted:
         st.success("Post submitted!")
 
 if not wall:
-    st.info("No posts yet. Be the first!")
+    st.info("ADD A POST!")
 else:
     for post in reversed(wall):
         with st.container(border=True):
