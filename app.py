@@ -42,7 +42,7 @@ def totalkgget(actions):
         total = total + a["kg"]
     return round(total, 2)
 
-def currenttreestage(kg)
+def currenttreestage(kg):
     if kg >= VERDANT["min_kg"]:
         return VERDANT
     elif kg >= TREE["min_kg"]:
