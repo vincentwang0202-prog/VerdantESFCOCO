@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import streamlit as st
@@ -50,60 +49,67 @@ wall = st.session_state.wall
 today = datetime.now(HK_TZ).date()
 
 
-def totalkgkg(actions):
-    return round(sum(a["kg"] for a in actions), 2)
+def totalkgget(actions):
+    total = 0
+    for a in actions:
+        total = total + a["kg"]
+    return round(total, 2)
 
+def currenttreestage(kg):
+    stage = TREE_STAGES[0]
+    for s in TREE_STAGES:
+        if kg >= s["min_kg"]:
+            stage = s
+    return stage
 
-def currenttstage(kg):
-    for stage in reversed(TREE_STAGES):
-        if kg >= stage["min_kg"]:
-            return stage
-    return TREE_STAGES[0]
-
-
-def countdayaction(actions, act_id):
-    today_str = today.isoformat()
-    return sum(1 for a in actions if a["way"] == act_id and a["date"] == today_str)
-
+def countodayaction(actions, act_id):
+    count = 0
+    for a in actions:
+        if a["way"] == act_id and a["date"] == today.isoformat():
+            count += 1
+    return count
 
 def streakcalc(actions):
-    logged_dates = {a["date"] for a in actions}
-    check_day = today
+    dates = []
+    for a in actions:
+        dates.append(a["date"])
 
-    if check_day.isoformat() not in logged_dates:
-        check_day -= timedelta(days=1)
+    day = today
+    # if nothing today yet start from yesterday so streak doesnt reset
+    if day.isoformat() not in dates:
+        day = day - timedelta(days=1)
 
     streak = 0
-    while check_day.isoformat() in logged_dates:
+    while day.isoformat() in dates:
         streak += 1
-        check_day -= timedelta(days=1)
+        day = day - timedelta(days=1)
     return streak
 
-
-def actclickhandling(user, action):
+def actionclickhandling(user, action):
     user_actions = players[user]
-    if countdayaction(user_actions, action["way"]) >= MAX_PER_DAY:
+    if countodayaction(user_actions, action["way"]) >= MAX_PER_DAY:
         return
 
-    prev_kg = totalkgkg(user_actions)
+    prev_kg = totalkgget(user_actions)
     user_actions.append({"way": action["way"], "kg": action["kg"], "date": today.isoformat()})
-    
     st.toast(f"+{action['kg']} kg carbon dioxide saved! {action['emoji']}")
 
-    new_kg = totalkgkg(user_actions)
+    new_kg = totalkgget(user_actions)
     if int(new_kg // FULL_TREE_KG) > int(prev_kg // FULL_TREE_KG):
         st.balloons()
-        st.toast(" You grew a whole Verdant tree! A new seed has been planted.")
-    elif currenttstage(new_kg % FULL_TREE_KG)["name"] != currenttstage(prev_kg % FULL_TREE_KG)["name"]:
+        st.toast("You grew a whole Verdant tree! A new seed has been planted.")
+    elif currenttreestage(new_kg % FULL_TREE_KG)["name"] != currenttreestage(prev_kg % FULL_TREE_KG)["name"]:
         st.balloons()
-        new_stage = currenttstage(new_kg % FULL_TREE_KG)
+        new_stage = currenttreestage(new_kg % FULL_TREE_KG)
         st.toast(f"Level up! Your tree is now a {new_stage['name']} {new_stage['emoji']}")
 
 
 st.title("🍃 Verdant")
 st.write("Grow your tree by saving carbon dioxide in Hong Kong every action helps.")
 
-community_total = sum(totalkgkg(acts) for acts in players.values())
+community_total = 0
+for name in players:
+    community_total = community_total + totalkgget(players[name])
 st.metric("Hong Kong total carbon dioxide saved", f"{community_total:.1f} kg carbon dioxide", border=True)
 
 nickname = st.text_input(
@@ -121,24 +127,30 @@ if len(nickname) < 3:
     st.warning("Nicknames must be at least 3 characters.")
     st.stop()
 
-user_actions = players.setdefault(nickname, [])
+if nickname not in players:
+    players[nickname] = []
+user_actions = players[nickname]
 
-total_saved = totalkgkg(user_actions)
+total_saved = totalkgget(user_actions)
 completed_trees = int(total_saved // FULL_TREE_KG)
 current_cycle_kg = total_saved % FULL_TREE_KG
 
-current_stage = currenttstage(current_cycle_kg)
-next_stage = next((s for s in TREE_STAGES if s["min_kg"] > current_cycle_kg), None)
+current_stage = currenttreestage(current_cycle_kg)
+next_stage = None
+for s in TREE_STAGES:
+    if s["min_kg"] > current_cycle_kg:
+        next_stage = s
+        break
 
 if completed_trees:
     st.success(f"**Your forest:** {TREE_STAGES[-1]['emoji'] * completed_trees} ({completed_trees} trees)")
 
 st.subheader(f"Your tree: {current_stage['name']}")
 
-if os.path.exists(current_stage["image"]):
+try:
     st.image(current_stage["image"], width=250)
-else:
-    st.markdown(f"<h1 style='text-align: center; font-size: 80px;'>{current_stage['emoji']}</h1>", unsafe_allow_html=True)
+except:
+    st.header(current_stage["emoji"])
 
 st.metric("Carbon dioxide saved", f"{total_saved:.2f} kg")
 
@@ -149,20 +161,20 @@ if next_stage:
 
 streak = streakcalc(user_actions)
 c1, c2 = st.columns(2)
-c1.metric("Current streak", f"🔥 {streak} day" if streak == 1 else f"🔥 {streak} days")
-c2.info(f"**Daily Tip:** {TIPS[today.toordinal() % len(TIPS)]}")
+c1.metric("Current streak", f"🔥 {streak} days")
+c2.info(f"**Daily Tip:** {TIPS[today.day % len(TIPS)]}")
 
 st.subheader("What green action did you do today?")
 
 grid = st.columns(2)
 for idx, action in enumerate(DATAPARTS):
-    reached_limit = countdayaction(user_actions, action["way"]) >= MAX_PER_DAY
+    reached_limit = countodayaction(user_actions, action["way"]) >= MAX_PER_DAY
     suffix = f" (+{action['kg']} kg)"
 
     grid[idx % 2].button(
         f"{action['emoji']} {action['words']}{suffix}",
         key=f"btn_{action['way']}",
-        on_click=actclickhandling,
+        on_click=actionclickhandling,
         args=(nickname, action),
         disabled=reached_limit,
         use_container_width=True,
@@ -205,8 +217,6 @@ if submitted:
             "photo": photo.getvalue(),
             "date": today.isoformat(),
         })
-        if len(wall) > 20:
-            wall.pop(0)
         st.success("Post submitted!")
 
 if not wall:
